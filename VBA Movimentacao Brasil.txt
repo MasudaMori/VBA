@@ -1,0 +1,109 @@
+Sub ExportarListaParaXML()
+    Dim wsConfig As Worksheet
+    Dim wsMenu As Worksheet
+    Dim caminhoSharePoint As String
+    Dim codigoLista As String
+    Dim caminhoXML As String
+    Dim objList As Object
+    Dim objExport As Object
+    
+    ' Configurar referências às abas
+    Set wsConfig = ThisWorkbook.Sheets("Config")
+    Set wsMenu = ThisWorkbook.Sheets("Menu")
+    
+    ' Ler valores das células
+    caminhoSharePoint = wsConfig.Range("C4").Value
+    codigoLista = wsConfig.Range("C5").Value
+    caminhoXML = wsMenu.Range("F10").Value
+    
+    ' Conectar ao SharePoint e pegar a lista
+    On Error GoTo ErrorHandler
+    Set objList = ConectarSharePoint(caminhoSharePoint, codigoLista)
+    
+    If objList Is Nothing Then
+        MsgBox "Erro ao conectar ao SharePoint. Verifique as configurações.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Exportar a lista para XML
+    Set objExport = ExportarParaXML(objList)
+    
+    If objExport Is Nothing Then
+        MsgBox "Erro ao exportar para XML. Verifique a lógica de exportação.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Salvar o XML no caminho especificado
+    SalvarXML objExport, caminhoXML
+    
+    MsgBox "Exportação concluída com sucesso!", vbInformation
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "Ocorreu um erro: " & Err.Description, vbCritical
+End Sub
+
+Function ConectarSharePoint(caminho As String, codigo As String) As Object
+    Dim conn As Object
+    Dim rs As Object
+    Set conn = CreateObject("ADODB.Connection")
+    Set rs = CreateObject("ADODB.Recordset")
+    
+    ' String de conexão para o SharePoint
+    Dim connectionString As String
+    connectionString = "Provider=Microsoft.ACE.OLEDB.12.0;WSS;IMEX=2;RetrieveIds=Yes;DATABASE=" & caminho & ";LIST=" & codigo & ";"
+    
+    ' Conectar ao SharePoint
+    conn.Open connectionString
+    
+    ' Executar uma consulta para obter todos os dados da lista
+    Dim query As String
+    query = "SELECT * FROM [Movimentacoes Brasil]" ' Substitua NomeDaLista pelo nome real da lista no SharePoint
+    
+    ' Abrir o Recordset
+    rs.Open query, conn, 1, 3 ' 1 = adOpenKeyset, 3 = adLockOptimistic
+    
+    Set ConectarSharePoint = rs
+End Function
+
+Function ExportarParaXML(rs As Object) As Object
+    Dim xmlDoc As Object
+    Set xmlDoc = CreateObject("MSXML2.DOMDocument")
+    
+    ' Configurar o documento XML
+    xmlDoc.async = False
+    xmlDoc.validateOnParse = False
+    
+    ' Criar o elemento raiz
+    Dim root As Object
+    Set root = xmlDoc.createElement("ListaSharePoint")
+    xmlDoc.appendChild root
+    
+    ' Iterar sobre os registros e criar elementos XML
+    rs.MoveFirst
+    Do Until rs.EOF
+        Dim item As Object
+        Set item = xmlDoc.createElement("Item")
+        
+        ' Adicionar campos como subelementos
+        Dim field As Object
+        For Each field In rs.Fields
+            Dim child As Object
+            Set child = xmlDoc.createElement(field.Name)
+            child.Text = field.Value
+            item.appendChild child
+        Next field
+        
+        ' Adicionar o item ao elemento raiz
+        root.appendChild item
+        
+        rs.MoveNext
+    Loop
+    
+    Set ExportarParaXML = xmlDoc
+End Function
+
+Sub SalvarXML(xmlDoc As Object, caminho As String)
+    ' Salvar o documento XML no caminho especificado
+    xmlDoc.Save caminho
+End Sub
