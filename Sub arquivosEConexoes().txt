@@ -1,0 +1,1353 @@
+Sub arquivosEConexoes()
+
+    'CAMINHOS
+    caminhoWFRelationship = ThisWorkbook.Worksheets("Config").Range("C10")
+    caminhoTemplate = ThisWorkbook.Worksheets("Config").Range("C12")
+    caminhoBackup = ThisWorkbook.Worksheets("Config").Range("C19")
+    caminhoMassConselheiro = ThisWorkbook.Worksheets("Config").Range("C15")
+    caminhoMassJR = ThisWorkbook.Worksheets("Config").Range("C16")
+
+    'ARQUIVOS
+    wfRelationship = ThisWorkbook.Worksheets("Config").Range("C11")
+    arquivoTemplateJobRelationship = ThisWorkbook.Worksheets("Config").Range("C13")
+    arquivoTemplateConselheiro = ThisWorkbook.Worksheets("Config").Range("C14")
+    arquivoMassConselheiro = Format(Date, "yyyy.MM.dd") & "-" & ThisWorkbook.Worksheets("Config").Range("C18")
+    arquivoMassJR = Format(Date, "yyyy.MM.dd") & "-" & ThisWorkbook.Worksheets("Config").Range("C17")
+
+    'SHAREPOINT LEITURA
+    sSharepointLeitura = ThisWorkbook.Worksheets("Config").Range("C4")
+    sSPListLeitura = ThisWorkbook.Worksheets("Config").Range("C5")
+    sConnLeitura = "Provider=Microsoft.ACE.OLEDB.12.0;WSS;IMEX=0;RetrieveIds=Yes;DATABASE=" & sSharepointLeitura & ";LIST=" & sSPListLeitura & ";"
+    sSQLLeitura = ""
+    sNomeListLeitura = ThisWorkbook.Worksheets("Config").Range("C6")
+
+    'SHAREPOINT GRAVAÇÃO
+    sSharepointGravacao = ThisWorkbook.Worksheets("Config").Range("C7")
+    sSPListGravacao = ThisWorkbook.Worksheets("Config").Range("C8")
+    sConnGravacao = "Provider=Microsoft.ACE.OLEDB.12.0;WSS;IMEX=0;RetrieveIds=Yes;DATABASE=" & sSharepointGravacao & ";LIST=" & sSPListGravacao & ";"
+    sSQLGravacao = ""
+    sNomeListGravacao = ThisWorkbook.Worksheets("Config").Range("C9")
+
+End Sub
+
+Sub validarColunas()
+
+    Dim buscaCol As Range
+    
+    ultimaColunaWF = Sheets(1).Cells(1, Columns.Count).End(xlToLeft).Column
+    Set buscaCol = Sheets(1).Range(Cells(1, 1), Cells(1, ultimaColunaWF))
+
+    nomeVerBase = "WF Relationship"
+
+'GUI
+    nomeVerColuna = "GUI"
+    cGUIEmployee = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+'UserID
+    nomeVerColuna = "User ID"
+    cUserIDEmployee = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+
+'Counseling Family Leader User ID
+    nomeVerColuna = "Counseling Family Leader User ID"
+    cCFLUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+'Counselor Connect Leader User ID
+    nomeVerColuna = "Counselor Connect Leader User ID"
+    cCCLUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+
+'Counselor User ID
+    nomeVerColuna = "Counselor User ID"
+    cCounselorUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+'T&E Supervisor User ID
+    nomeVerColuna = "T&E Supervisor User ID"
+    cTeEUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+'Buddy User ID
+    nomeVerColuna = "Buddy User ID"
+    cBuddyUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+'EA (Assistant) User ID
+    nomeVerColuna = "EA (Assistant) User ID"
+    cEAUserID = WorksheetFunction.Match(nomeVerColuna, buscaCol, 0)
+    
+
+End Sub
+
+Sub setRanges()
+
+    Set rgnWFUserIDEmployee = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cUserIDEmployee), Cells(ultimaLinhaWF, cUserIDEmployee))
+    Set rgnWFUserIDCounselor = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cCounselorUserID), Cells(ultimaLinhaWF, cCounselorUserID))
+    Set rgnWFUserIDCCL = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cCCLUserID), Cells(ultimaLinhaWF, cCCLUserID))
+    Set rgnWFUserIDCFL = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cCFLUserID), Cells(ultimaLinhaWF, cCFLUserID))
+    Set rgnWFUserIDBuddy = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cBuddyUserID), Cells(ultimaLinhaWF, cBuddyUserID))
+    Set rgnWFUserIDEA = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cEAUserID), Cells(ultimaLinhaWF, cEAUserID))
+    Set rgnWFUserTeE = Workbooks(wfRelationship).Sheets(1).Range(Cells(2, cTeEUserID), Cells(ultimaLinhaWF, cTeEUserID))
+
+End Sub
+
+Sub statusEmployeeInativo()
+    
+    Cells(linhaSemDuplicados, 8) = "User ID del profesional no encontrada"
+    Cells(linhaSemDuplicados, 11) = "Não processado"
+
+End Sub
+
+Sub statusRelationshipInativo()
+    
+    Cells(linhaSemDuplicados, 8) = "User ID del relationship no encontrada"
+    Cells(linhaSemDuplicados, 11) = "Não processado"
+
+End Sub
+
+Sub statusRelationshipIgualEmployee()
+    
+    Cells(linhaSemDuplicados, 8) = "User ID de la relación es el mismo que el User ID del profesional"
+    Cells(linhaSemDuplicados, 11) = "Não processado"
+
+End Sub
+
+Sub statusRelationshipInexistente()
+    
+    Cells(linhaSemDuplicados, 8) = "Tipo de relación inexistente"
+    Cells(linhaSemDuplicados, 11) = "Não processado"
+
+End Sub
+
+Sub statusProcessadoHRE()
+    
+    Cells(linhaSemDuplicados, 8) = "Processado"
+    Cells(linhaSemDuplicados, 11) = "Não validado"
+
+End Sub
+
+Sub statusRelationshipCorreto()
+
+    Cells(linhaSemDuplicados, 8) = "La relación está en WF"
+    Cells(linhaSemDuplicados, 11) = "Processado no SF"
+
+End Sub
+
+Sub statusEmployeeInativoSF()
+    
+    Cells(linhaListaCompleta, 8) = "User ID del profesional no encontrada"
+    Cells(linhaListaCompleta, 11) = "Não processado"
+
+End Sub
+
+Sub statusRelationshipInativoSF()
+    
+    Cells(linhaListaCompleta, 8) = "User ID del relationship no encontrada"
+    Cells(linhaListaCompleta, 11) = "Não processado"
+
+End Sub
+
+Sub statusValidadoSF()
+    
+    Cells(linhaListaCompleta, 11) = "Processado no SF"
+
+End Sub
+
+Sub statusNaoProcessadoSF()
+    
+    Cells(linhaListaCompleta, 11) = "Não processado"
+
+End Sub
+
+Sub verificarRelationship()
+
+    Select Case tipoRelationship
+        
+        Case Is = "Buddy"
+            
+            Set buddyAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If buddyAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Is = "Counselor"
+            
+            Set counselorAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If counselorAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Is = "Counselor Connect Leader"
+            
+            Set cclAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If cclAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Is = "Counseling Family Leader"
+            
+            Set cflAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If cflAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Is = "EA (Assistant)"
+            
+            Set eaAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If eaAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Is = "T&E Supervisor"
+            
+            Set teeAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+            If teeAtivo Is Nothing Then
+            
+                Call statusRelationshipInativo
+                GoTo desvio
+            
+            End If
+        
+        Case Else
+            
+            Call statusRelationshipInexistente
+            GoTo desvio
+    
+    End Select
+    
+
+    desviar = False
+    
+Exit Sub
+
+desvio:
+
+    desviar = True
+
+    
+End Sub
+
+Sub compararRelationshipAtual()
+
+    Select Case tipoRelationship
+        
+        Case Is = "Buddy"
+            cRelationship = cBuddyUserID
+
+        Case Is = "Counselor"
+            cRelationship = cCounselorUserID
+
+        Case Is = "Counselor Connect Leader"
+            cRelationship = cCCLUserID
+
+        Case Is = "Counseling Family Leader"
+            cRelationship = cCFLUserID
+
+        Case Is = "EA (Assistant)"
+            cRelationship = cEAUserID
+
+        Case Is = "T&E Supervisor"
+            cRelationship = cTeEUserID
+
+    End Select
+
+    numeroColunas = (cRelationship - cUserIDEmployee) + 1
+
+    relationshipWF = Application.VLookup(userIDEmployee, wsRelationship.Range(Cells(1, cUserIDEmployee), Cells(ultimaLinhaWF, cRelationship)), numeroColunas, False)
+    
+
+
+End Sub
+
+
+Sub gerarListas()
+
+    'Formatação datas
+    dataInicio = Format(ThisWorkbook.Worksheets("Main").Range("D8"), "yyyy-MM-dd")
+    dataFim = Format(ThisWorkbook.Worksheets("Main").Range("g8"), "yyyy-MM-dd")
+
+    Call arquivosEConexoes
+    
+    Sheets("Lista sem duplicados").Select
+    
+    Range("A1").Select
+    
+    'Verificação da ultima linha da lista sem duplicados atual
+    ultimaLinhaSemDuplicados = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    'Limpeza da lista sem duplicados
+    Range(Cells(1, 1), Cells(ultimaLinhaSemDuplicados, 1)).EntireRow.Delete
+    
+    Sheets("Lista completa").Select
+    
+    Range("A1").Select
+    
+    'Verificação da ultima linha da lista completa atual
+    ultimaLinhaListaCompleta = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    'Limpeza da lista completa
+    If ultimaLinhaListaCompleta > 2 Then
+        Range(Cells(2, 1), Cells(ultimaLinhaListaCompleta, 1)).EntireRow.Delete
+    End If
+    
+    'Formula da coluna CHAVE (USER ID - RELATIONSHIP TYPE)
+    Cells(2, 10).Formula = "=CONCAT(C2,""-"",E2)"
+    
+    'Query SQL carregando a lista do sharepoint
+    sSQLLeitura = "SELECT [ID], [GUI], [User ID], [Effective Date], [Relationship Type], [GUI Relationship Employee], [User ID Relationship Employee], [Processamento HRE], [Data Criado] " & _
+                "FROM [" & sNomeListLeitura & "] WHERE [Processamento HRE] = 'Pendiente' AND [Effective Date] >= #" & _
+                Format(dataInicio, "MM/dd/yyyy") & "# AND [Effective Date] <= #" & Format(dataFim, "MM/dd/yyyy") & "# ORDER BY [ID] DESC;"
+                
+    'Ajuste conexão Sharepoint
+    Set cn = New ADODB.Connection
+    
+    With cn
+        .ConnectionString = sConnLeitura
+        .Open
+    End With
+    
+    'Ajuste lista de registros Sharepoint
+    Set rs = New ADODB.Recordset
+    rs.Open sSQLLeitura, cn, adOpenDynamic, adLockOptimistic
+    
+    'Verificar se o registro não está "vazio"
+    If Not (rs.EOF And rs.BOF) Then
+        Range("A2").Select
+        Range("A2").CopyFromRecordset rs
+    End If
+    
+    'Encerramento da conexão Sharepoint
+    rs.Close
+    cn.Close
+    
+    'Copiar registros para a aba Lista sem duplicados
+    Range("A1").CurrentRegion.Copy
+    
+    Sheets("Lista sem duplicados").Select
+        
+    Range("A1").PasteSpecial xlPasteValues
+    
+    'Remover duplicidades
+    Range("A1").CurrentRegion.RemoveDuplicates 10, xlYes
+
+
+End Sub
+
+Sub validarStatusHRE()
+
+    Call arquivosEConexoes
+
+    'Abrir arquivo WF Relationship
+    Workbooks.Open caminhoWFRelationship & wfRelationship
+    
+    Workbooks(wfRelationship).Activate
+    Sheets(1).Select
+    
+    Set wsRelationship = Workbooks(wfRelationship).Sheets(1)
+    
+    On Error GoTo erroColuna
+    
+    Call validarColunas
+    
+    faltaColuna = False
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    ultimaLinhaWF = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    Call setRanges
+            
+    ThisWorkbook.Activate
+    
+    Sheets("Lista sem duplicados").Select
+    
+    ultimaLinhaSemDuplicados = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    For linhaSemDuplicados = 2 To ultimaLinhaSemDuplicados
+        
+        userIDEmployee = Cells(linhaSemDuplicados, 3)
+        tipoRelationship = Cells(linhaSemDuplicados, 5)
+        userIDRelationship = Cells(linhaSemDuplicados, 7)
+        
+        If userIDEmployee = userIDRelationship Then
+            
+            Call statusRelationshipIgualEmployee
+            GoTo desvio
+            
+        End If
+            
+        Set employeeAtivo = rgnWFUserIDEmployee.Find(userIDEmployee, LookIn:=xlValues)
+        
+        If employeeAtivo Is Nothing Then
+            
+            Call statusEmployeeInativo
+            GoTo desvio
+            
+        End If
+                                              
+        Call verificarRelationship
+
+        
+        If desviar = True Then
+            
+            GoTo desvio
+            
+        End If
+        
+        Workbooks(wfRelationship).Activate
+        
+        Call compararRelationshipAtual
+        
+        ThisWorkbook.Activate
+    
+        Sheets("Lista sem duplicados").Select
+        
+        If relationshipWF = userIDRelationship Then
+    
+            Call statusRelationshipCorreto
+            GoTo desvio
+    
+        End If
+        
+        Call statusProcessadoHRE
+                
+desvio:
+
+    desviar = False
+    
+    Next linhaSemDuplicados
+    
+    Workbooks(wfRelationship).Close False
+       
+Exit Sub
+    
+erroColuna:
+
+faltaColuna = True
+    
+End Sub
+
+Sub atualizarListaCompleta()
+
+    ThisWorkbook.Activate
+
+    Sheets("Lista Completa").Select
+
+    Cells(2, 8).Formula = "=IF(ISERROR(VLOOKUP($A2,'Lista sem duplicados'!$A:$K,8,0)),""Duplicado"",VLOOKUP($A2,'Lista sem duplicados'!$A:$K,8,0))"
+    Cells(2, 8).Select
+    Selection.AutoFill Destination:=Range("ListaCompleta[Processamento HRE]")
+    
+    Cells(2, 11).Formula = "=IF(ISERROR(VLOOKUP($A2,'Lista sem duplicados'!$A:$K,11,0)),""Não processado"",VLOOKUP($A2,'Lista sem duplicados'!$A:$K,11,0))"
+    Cells(2, 11).Select
+    Selection.AutoFill Destination:=Range("ListaCompleta[Validacao Success Factors]")
+
+
+End Sub
+
+Sub backupListaSemDuplicados()
+
+    Call arquivosEConexoes
+    
+    nomeBackupLista = Format$(Date, "yyyy.MM.dd") & " - JR List.xlsx"
+    
+    Workbooks.Add
+    
+    ActiveSheet.Name = "Job relationships"
+    
+    Application.DisplayAlerts = False
+    
+    On Error Resume Next
+    
+    ActiveWorkbook.SaveAs caminhoBackup & nomeBackupLista
+    
+    If Error(1004) Then
+        Workbooks(nomeBackupLista).Kill
+        ActiveWorkbook.SaveAs caminhoBackup & nomeBackupLista
+    End If
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    Application.DisplayAlerts = True
+
+    On Error Resume Next
+    
+    ActiveWorkbook.AutoSaveOn = False
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    ThisWorkbook.Activate
+    Sheets("Lista sem duplicados").Select
+    'Sheets("Lista sem duplicados").Copy
+    
+    ultimaLinhaSemDuplicados = Cells(Rows.Count, 1).End(xlUp).Row
+    ultimaColunaSemDuplicados = Cells(1, Columns.Count).End(xlToLeft).Column
+    
+    linha = 1
+    coluna = 1
+    
+    With Workbooks(nomeBackupLista).Sheets(1)
+    
+        For linhaSemDuplicados = 1 To ultimaLinhaSemDuplicados
+                    
+            If linhaSemDuplicados > 1 And Cells(linhaSemDuplicados, 8) <> "Processado" Then
+            GoTo desvio
+            End If
+            
+            For colunaSemDuplicados = 1 To ultimaColunaSemDuplicados
+            
+            .Cells(linha, coluna) = Cells(linhaSemDuplicados, colunaSemDuplicados)
+                        
+            coluna = coluna + 1
+            
+            Next colunaSemDuplicados
+            
+            linha = linha + 1
+            coluna = 1
+desvio:
+        Next linhaSemDuplicados
+        
+    End With
+    
+    With Workbooks(nomeBackupLista)
+        .Save
+        .Close
+    End With
+    
+    ThisWorkbook.Activate
+    
+End Sub
+
+Sub gerarMassUploadConselheiro()
+
+    Call arquivosEConexoes
+    
+    Sheets("Lista sem duplicados").Select
+    
+    ultimaLinhaSemDuplicados = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    countCounselor = Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "Counselor", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado")
+                    
+    If countCounselor = 0 Then
+        GoTo pularTemplate
+    End If
+    
+    Workbooks.Open caminhoTemplate & arquivoTemplateConselheiro
+    
+    Sheets("Template").Select
+    
+    On Error Resume Next
+    
+    ActiveWorkbook.AutoSaveOn = False
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    linha = 4
+    
+    With ThisWorkbook.Sheets("Lista sem duplicados")
+        
+        For linhaSemDuplicados = 2 To ultimaLinhaSemDuplicados
+            
+            If .Cells(linhaSemDuplicados, 8) <> "Processado" Then
+                GoTo desvio
+                Else
+                    If .Cells(linhaSemDuplicados, 5) <> "Counselor" Then
+                    GoTo desvio
+                    End If
+            End If
+            
+            Cells(linha, 1) = .Cells(linhaSemDuplicados, 3) 'User ID Employee
+            Cells(linha, 2) = .Cells(linhaSemDuplicados, 7) 'User ID Relationship
+            Cells(linha, 3) = Format(Date, "MM/dd/yyyy") 'Date
+            Cells(linha, 4) = "AAY" 'Event Reason
+            
+            linha = linha + 1
+            
+desvio:
+            
+        Next linhaSemDuplicados
+    
+    End With
+    
+    Application.DisplayAlerts = False
+    
+    On Error Resume Next
+    
+    Workbooks(arquivoTemplateConselheiro).SaveAs caminhoMassConselheiro & arquivoMassConselheiro
+    
+    If Error(1004) Then
+        Workbooks(arquivoTemplateConselheiro).Kill
+        Workbooks(arquivoTemplateConselheiro).SaveAs caminhoMassConselheiro & arquivoMassConselheiro
+    End If
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    Workbooks(arquivoMassConselheiro).Close
+    
+    Application.DisplayAlerts = True
+        
+    
+pularTemplate:
+
+    ThisWorkbook.Activate
+
+End Sub
+
+Sub gerarMassUploadJR()
+    
+    Call arquivosEConexoes
+    
+    Sheets("Lista sem duplicados").Select
+    
+    ultimaLinhaSemDuplicados = Cells(Rows.Count, 1).End(xlUp).Row
+                    
+    CountJobRelationship = Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "Buddy", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado") + _
+                    Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "Counselor Connect Leader", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado") + _
+                    Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "Counseling Family Leader", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado") + _
+                    Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "T&E Supervisor", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado") + _
+                    Application.WorksheetFunction.CountIfs(Range(Cells(2, 5), Cells(ultimaLinhaSemDuplicados, 5)), "EA (Assistant)", _
+                    Range(Cells(2, 8), Cells(ultimaLinhaSemDuplicados, 8)), "Processado")
+                    
+    If CountJobRelationship = 0 Then
+        GoTo pularTemplate
+    End If
+    
+    Workbooks.Open caminhoTemplate & arquivoTemplateJobRelationship
+    
+    On Error Resume Next
+    
+    ActiveWorkbook.AutoSaveOn = False
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    Sheets("Template").Select
+        
+    linha = 4
+    
+    With ThisWorkbook.Sheets("Lista sem duplicados")
+        
+        For linhaSemDuplicados = 2 To ultimaLinhaSemDuplicados
+            
+            If .Cells(linhaSemDuplicados, 8) <> "Processado" Then
+                GoTo desvio
+                Else
+                    If .Cells(linhaSemDuplicados, 5) <> "Buddy" And .Cells(linhaSemDuplicados, 5) <> "Buddy" And .Cells(linhaSemDuplicados, 5) <> "Counselor Connect Leader" And .Cells(linhaSemDuplicados, 5) <> "Counseling Family Leader" And .Cells(linhaSemDuplicados, 5) <> "EA (Assistant)" And .Cells(linhaSemDuplicados, 5) <> "T&E Supervisor" Then
+                        GoTo desvio
+                    End If
+            End If
+            
+            Cells(linha, 1) = Format(Date, "MM/dd/yyyy") 'Date
+            Cells(linha, 2) = .Cells(linhaSemDuplicados, 7) 'User ID Employee
+            Cells(linha, 3) = .Cells(linhaSemDuplicados, 5) 'Relationship Type
+            Cells(linha, 4) = .Cells(linhaSemDuplicados, 3) 'User ID Employee
+            
+            linha = linha + 1
+desvio:
+            
+        Next linhaSemDuplicados
+    
+    End With
+    
+    Application.DisplayAlerts = False
+    
+    On Error Resume Next
+    
+    Workbooks(arquivoTemplateJobRelationship).SaveAs caminhoMassJR & arquivoMassJR
+    
+    If Error(1004) Then
+        Workbooks(arquivoTemplateJobRelationship).Kill
+        Workbooks(arquivoTemplateJobRelationship).SaveAs caminhoMassJR & arquivoMassJR
+    End If
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    Workbooks(arquivoMassJR).Close
+    
+    Application.DisplayAlerts = True
+        
+    
+pularTemplate:
+    
+    ThisWorkbook.Activate
+    
+End Sub
+
+Sub atualizarSharepoint()
+
+    Call arquivosEConexoes
+    
+    Sheets("Lista completa").Select
+    
+    ultimaLinhaListaCompleta = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    If ultimaLinhaListaCompleta <= 2 Then
+        GoTo desvio
+    End If
+    
+     'Ajuste conexão Sharepoint
+    Set cn = New ADODB.Connection
+    
+    With cn
+        .ConnectionString = sConnGravacao
+        .Open
+    End With
+    
+    For linhaListaCompleta = 2 To ultimaLinhaListaCompleta
+    
+    'Query SQL carregando a lista do Sharepoint
+    sSQLGravacao = "UPDATE [" & sNomeListGravacao & "] " & _
+                "SET [Processamento HRE] = '" & Cells(linhaListaCompleta, 8) & "', [Validacao Success Factors] = '" & Cells(linhaListaCompleta, 11) & "' " & _
+                "WHERE [ID] = " & Cells(linhaListaCompleta, 1) & ""
+
+                
+    cn.Execute sSQLGravacao, , adCmdText
+                
+    Next linhaListaCompleta
+    
+    'Encerramento da conexão Sharepoint
+    cn.Close
+    
+    'Limpando conexão
+    Set cn = Nothing
+
+desvio:
+
+End Sub
+
+Sub botaoGerarArquivo()
+
+    'Parar atualização de tela para otimizar macro
+    Application.ScreenUpdating = False
+    
+    Call gerarListas
+    
+    Call validarStatusHRE
+    
+    If faltaColuna = True Then
+        GoTo erroColuna
+    End If
+    
+    Call atualizarListaCompleta
+    Call backupListaSemDuplicados
+    Call gerarMassUploadConselheiro
+    Call gerarMassUploadJR
+    Call atualizarSharepoint
+    
+    
+    ThisWorkbook.Activate
+    Sheets("Main").Select
+    
+    
+    'Reverter atualização de tela
+    Application.ScreenUpdating = True
+    
+    
+    MsgBox "Archivos de carga masiva generados y Sharepoint actualizado.", vbInformation, "Macro Job Relationship"
+    
+    Exit Sub
+
+erroColuna:
+    MsgBox "Columna " & nomeVerColuna & " no encontrada en la base " & nomeVerBase & ".", vbInformation, "Macro Job Relationship"
+
+'Reverter atualização de tela
+    Application.ScreenUpdating = True
+
+End Sub
+
+Sub botaoAtualizarSharepoint()
+
+    Application.ScreenUpdating = False
+    
+    Call atualizarSharepoint
+    
+    MsgBox "Sharepoint actualizado", vbInformation, "Macro Job Relationship"
+    
+    Application.ScreenUpdating = True
+
+End Sub
+
+Sub gerarListaValidacao()
+
+    'Formatação datas
+    dataInicio = Format(ThisWorkbook.Worksheets("Main").Range("D8"), "yyyy-MM-dd")
+    dataFim = Format(ThisWorkbook.Worksheets("Main").Range("g8"), "yyyy-MM-dd")
+
+    Call arquivosEConexoes
+    
+    Sheets("Lista validacao").Select
+    
+    Range("A1").Select
+    
+    'Verificação da ultima linha da lista completa atual
+    ultimaLinhaListaCompleta = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    'Limpeza da lista completa
+    If ultimaLinhaListaCompleta > 2 Then
+        Range(Cells(2, 1), Cells(ultimaLinhaListaCompleta, 1)).EntireRow.Delete
+    End If
+    
+    'Formula da coluna CHAVE (USER ID - RELATIONSHIP TYPE)
+    Cells(2, 10).Formula = "=CONCAT(C2,""-"",E2)"
+    
+    'Query SQL carregando a lista do sharepoint
+    sSQLLeitura = "SELECT [ID], [GUI], [User ID], [Effective Date], [Relationship Type], [GUI Relationship Employee], [User ID Relationship Employee], [Processamento HRE], [Data Criado] " & _
+                "FROM [" & sNomeListLeitura & "] WHERE [Processamento HRE] = 'Processado' AND [Effective Date] >= #" & _
+                Format(dataInicio, "MM/dd/yyyy") & "# AND [Effective Date] <= #" & Format(dataFim, "MM/dd/yyyy") & "# ORDER BY [ID] DESC;"
+                
+    'Ajuste conexão Sharepoint
+    Set cn = New ADODB.Connection
+    
+    With cn
+        .ConnectionString = sConnLeitura
+        .Open
+    End With
+    
+    'Ajuste lista de registros Sharepoint
+    Set rs = New ADODB.Recordset
+    rs.Open sSQLLeitura, cn, adOpenDynamic, adLockOptimistic
+    
+    'Verificar se o registro não está "vazio"
+    If Not (rs.EOF And rs.BOF) Then
+        Range("A2").Select
+        Range("A2").CopyFromRecordset rs
+    End If
+    
+    'Encerramento da conexão Sharepoint
+    rs.Close
+    cn.Close
+    
+
+End Sub
+
+Sub validarStatusSF()
+
+    Call arquivosEConexoes
+
+    'Abrir arquivo WF Relationship
+    Workbooks.Open caminhoWFRelationship & wfRelationship
+    
+    Workbooks(wfRelationship).Activate
+    Sheets(1).Select
+    
+    Set wsRelationship = Workbooks(wfRelationship).Sheets(1)
+    
+    On Error GoTo erroColuna
+    
+    Call validarColunas
+    
+    faltaColuna = False
+    
+    On Error GoTo -1
+    On Error GoTo 0
+    
+    ultimaLinhaWF = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    Call setRanges
+            
+    ThisWorkbook.Activate
+    
+    Sheets("Lista validacao").Select
+    
+    ultimaLinhaListaCompleta = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    For linhaListaCompleta = 2 To ultimaLinhaListaCompleta
+        
+        userIDEmployee = Cells(linhaListaCompleta, 3)
+        tipoRelationship = Cells(linhaListaCompleta, 5)
+        userIDRelationship = Cells(linhaListaCompleta, 7)
+        
+        Set employeeAtivo = rgnWFUserIDEmployee.Find(userIDEmployee, LookIn:=xlValues)
+        
+        If employeeAtivo Is Nothing Then
+            
+            Call statusEmployeeInativoSF
+            GoTo desvio
+            
+        End If
+        
+        Set employeeAtivo = rgnWFUserIDEmployee.Find(userIDRelationship, LookIn:=xlValues)
+        
+        If employeeAtivo Is Nothing Then
+            
+            Call statusRelationshipInativoSF
+            GoTo desvio
+            
+        End If
+
+       
+        Workbooks(wfRelationship).Activate
+        
+        Call compararRelationshipAtual
+        
+        ThisWorkbook.Activate
+    
+        Sheets("Lista validacao").Select
+        
+        If relationshipWF = userIDRelationship Then
+    
+            Call statusValidadoSF
+            
+            Else
+            
+                Call statusNaoProcessadoSF
+        
+        End If
+                
+desvio:
+
+    desviar = False
+    
+    Next linhaListaCompleta
+    
+    Workbooks(wfRelationship).Close False
+       
+Exit Sub
+    
+erroColuna:
+
+faltaColuna = True
+    
+End Sub
+
+Sub atualizarValidacaoSharepoint()
+
+    Call arquivosEConexoes
+    
+    ThisWorkbook.Activate
+    
+    Sheets("Lista validacao").Select
+    
+    ultimaLinhaListaCompleta = Cells(Rows.Count, 1).End(xlUp).Row
+    
+    If ultimaLinhaListaCompleta <= 2 Then
+        GoTo desvio
+    End If
+    
+     'Ajuste conexão Sharepoint
+    Set cn = New ADODB.Connection
+    
+    With cn
+        .ConnectionString = sConnGravacao
+        .Open
+    End With
+    
+    For linhaListaCompleta = 2 To ultimaLinhaListaCompleta
+    
+    'Query SQL carregando a lista do Sharepoint
+    sSQLGravacao = "UPDATE [" & sNomeListGravacao & "] " & _
+                "SET [Processamento HRE] = '" & Cells(linhaListaCompleta, 8) & "', [Validacao Success Factors] = '" & Cells(linhaListaCompleta, 11) & "' " & _
+                "WHERE [ID] = " & Cells(linhaListaCompleta, 1) & ""
+
+                
+    cn.Execute sSQLGravacao, , adCmdText
+                
+    Next linhaListaCompleta
+    
+    'Encerramento da conexão Sharepoint
+    cn.Close
+    
+    'Limpando conexão
+    Set cn = Nothing
+
+desvio:
+
+End Sub
+
+Sub botaoValidarSF()
+
+    'Parar atualização de tela para otimizar macro
+    Application.ScreenUpdating = False
+    
+    Call gerarListaValidacao
+    
+    Call validarStatusSF
+    
+    If faltaColuna = True Then
+        GoTo erroColuna
+    End If
+    
+    Call atualizarValidacaoSharepoint
+    
+    ThisWorkbook.Activate
+    Sheets("Main").Select
+    
+    
+    'Reverter atualização de tela
+    Application.ScreenUpdating = True
+    
+    
+    MsgBox "Validación en el SF completada.", vbInformation, "Macro Job Relationship"
+    
+    Exit Sub
+
+erroColuna:
+    MsgBox "Columna " & nomeVerColuna & " no encontrada en la base " & nomeVerBase & ".", vbInformation, "Macro Job Relationship"
+
+'Reverter atualização de tela
+    Application.ScreenUpdating = True
+
+End Sub
+
+
+
+-----------------variável
+
+'STRING
+Public sSharepointLeitura As String, sSPListLetura As String, sConnLeitura As String, sSQLLeitura As String, sNomeListLeitura As String
+Public sSharepointGravacao As String, sSPListGravacao As String, sConnGravacao As String, sSQLGravacao As String, sNomeListGravacao As String
+Public caminhoWFRelationship As String, wfRelationship As String
+Public caminhoTemplate As String, arquivoTemplateJobRelationship As String, arquivoTemplateConselheiro As String
+Public arquivoMassConselheiro As String, arquivoMassJR As String
+Public nomeVerColuna As String, nomeVerBase As String
+Public userIDEmployee As String, userIDRelationship As String, tipoRelationship As String, relationshipWF As String
+Public caminhoBackup As String, caminhoMassConselheiro As String, caminhoMassJR As String
+
+'COLUNAS
+Public cGUIEmployee As Integer, cUserIDEmployee As Integer, cCFLUserID As Integer, cCCLUserID As Integer, cEAUserID As Integer
+Public cCounselorUserID As Integer, cTeEUserID As Integer, cBuddyUserID As Integer, cRelationship As Integer, numeroColunas As Integer
+Public coluna As Integer, colunaSemDuplicados As Integer, ultimaColunaSemDuplicados As Integer
+
+'LINHAS
+Public ultimaLinhaListaCompleta As Long, linhaListaCompleta As Long
+Public linhaWF As Long, ultimaLinhaWF As Long
+Public ultimaLinhaSemDuplicados, linhaSemDuplicados As Long
+Public linhaTemplateJobRelationship As Long
+Public linhaTemplateConselheiro As Long
+Public ultimaColunaWF As Long
+Public linha As Integer
+Public countCounselor As Long
+Public CountJobRelationship As Long
+
+'DESVIOS
+Public desvio As Byte, erroColuna As Byte, pularTemplate As Byte
+Public desviar As Boolean, faltaColuna As Boolean
+
+'OBJETO ADODB
+Public cn As ADODB.Connection
+Public rs As ADODB.Recordset
+
+'RANGES
+Public rgnWFUserIDEmployee As Range, rgnWFUserIDCounselor As Range, rgnWFUserIDCCL As Range, rgnWFUserIDCFL As Range, rgnWFUserIDBuddy As Range, rgnWFUserIDEA As Range, rgnWFUserTeE As Range
+Public employeeAtivo As Range, counselorAtivo As Range, cclAtivo As Range, cflAtivo As Range, eaAtivo As Range, buddyAtivo As Range, teeAtivo As Range
+
+'OUTROS OBJETOS
+Public dicionario As Dictionary
+Public fso As FileSystemObject
+
+'Sheets
+Public wsRelationship As Worksheet
+
+----------------------------------------------------- Old
+
+
+Sub CheckUserID()
+    Dim ws As Worksheet
+    Dim ws2 As Worksheet
+    Dim rng As Range
+    Dim rng2, rng3 As Range
+    Dim i As Long
+    Dim wb2 As Workbook
+    Dim isFoundC, isFoundG, isFound As Range
+
+    Call arquivosEConexoes
+
+    'Definindo a worksheet que será usada
+    Set ws = ThisWorkbook.Sheets("Lista sem duplicados")
+
+    'Definindo o range baseado na última linha da coluna C
+    Set rng = ws.Range("C2:C" & ws.Cells(ws.Rows.Count, "C").End(xlUp).Row)
+
+    ' Abrir a segunda planilha
+    Set wb2 = Workbooks.Open(caminhoWFRelationship & wfRelationship)
+
+    ' Definindo a segunda worksheet que será usada
+    Set ws2 = wb2.Sheets("Excel Output")
+
+    ' Definindo o segundo range baseado na última linha da coluna D
+    Set rng2 = ws2.Range("D2:D" & ws2.Cells(ws2.Rows.Count, "D").End(xlUp).Row)
+
+    ' Definindo o terceiro range baseado na última linha da coluna AT
+    Set rng3 = ws2.Range("D2:D" & ws2.Cells(ws2.Rows.Count, "AT").End(xlUp).Row)
+
+    ' Concatenando as colunas na segunda planilha
+    With ws2
+        For i = 2 To .Cells(.Rows.Count, "D").End(xlUp).Row
+  Select Case ws.Cells(i, "E").Value
+    Case "Counselor"
+      .Cells(i, "DT").Formula = "=D" & i & " & AT" & i
+    Case "T&E Supervisor"
+      .Cells(i, "DT").Formula = "=D" & i & " & BB" & i
+    Case "Counselor Connect Leader"
+      .Cells(i, "DT").Formula = "=D" & i & " & CB" & i
+    Case "Counseling Family Leader"
+      .Cells(i, "DT").Formula = "=D" & i & " & BO" & i
+    Case "Buddy"
+      .Cells(i, "DT").Formula = "=D" & i & " & CU" & i
+    Case Else
+      .Cells(i, "DT").Formula = "=D" & i & " & AT" & i
+  End Select
+Next i
+    End With
+
+    ' Loop através de cada célula no range definido
+    For i = 1 To rng.Count
+        ' Concatenando as colunas na primeira planilha
+        ws.Range("L" & i + 1).Value = rng(i).Value & rng(i).Offset(0, 4).Value
+
+        ' Verificando se o User ID (Coluna C) é igual ao User ID Relationship Employee (Coluna G)
+        If rng(i).Value = rng(i).Offset(0, 4).Value Then
+            ' Se são iguais, então coloque "User ID igual ao do Counselor" no campo Validacao Success Factors (Coluna K)
+            rng(i).Offset(0, 5).Value = "User ID igual ao do Counselor"
+        Else
+            ' Buscando pelo User ID (Coluna C) na segunda planilha
+            Set isFoundC = rng2.Find(what:=rng(i).Value)
+            
+            ' Buscando pelo User ID Relationship Employee (Coluna G) na segunda planilha
+            Set isFoundG = rng3.Find(what:=rng(i).Offset(0, 4).Value)
+
+            'Se nao encontrar User ID na planilha 2
+            If isFoundC Is Nothing Then
+                rng(i).Offset(0, 5).Value = "Profissional Inativo"
+            'Se não encontrar User ID Relationship Employee na planilha 2
+            ElseIf isFoundG Is Nothing Then
+                rng(i).Offset(0, 5).Value = "Conselheiro Inativo"
+            Else
+                ' Se ambas condições forem encontradas, busque a chave na segunda planilha.
+                Set isFound = ws2.Range("DT2:DT" & ws2.Cells(ws2.Rows.Count, "DT").End(xlUp).Row).Find(what:=ws.Range("L" & i + 1).Value)
+
+                ' Se a chave for encontrada, então coloque "Não Processado" no campo Processamento HRE (Coluna H) e "Relationship já existente" no campo Validacao Success Factors (Coluna K)
+                If Not isFound Is Nothing Then
+                'Processamento HRE
+                    rng(i).Offset(0, 5).Value = "Nao Processado"
+                'Validacao Success Factors
+                    rng(i).Offset(0, 8).Value = "Não Processado no SF"
+                Else
+                    ' Se não encontrar a chave, então coloque "Processado" no campo Processamento HRE (Coluna H) e "Pendente" no campo Validacao Success Factors (Coluna K)
+                    rng(i).Offset(0, 5).Value = "Processado"
+                    rng(i).Offset(0, 8).Value = "Não Validado"
+                End If
+            End If
+        End If
+    Next i
+
+    ' Fechando a segunda planilha sem salvar as mudanças
+    wb2.Close SaveChanges:=False
+End Sub
+
+Sub Listacompleta()
+
+
+     Dim wsComplete As Worksheet
+    Dim wsNoDupes As Worksheet
+    Dim rng As Range
+    Dim LastRow As Long
+
+    'Define as planilhas
+    Set wsComplete = ThisWorkbook.Sheets("Lista completa")
+    Set wsNoDupes = ThisWorkbook.Sheets("Lista sem duplicados")
+
+    'Determina a última linha da coluna C na planilha "Lista completa"
+    LastRow = wsComplete.Cells(wsComplete.Rows.Count, "C").End(xlUp).Row
+
+    'Define a área de alcance a ser a coluna "H" nas linhas onde a coluna "C" tem dados
+    Set rng = wsComplete.Range("H2:H" & LastRow)
+
+    'Executa o VLookup
+    rng.NumberFormat = "General"
+    rng.Formula = "=VLOOKUP(C2,'" & wsNoDupes.Name & "'!$C:$H,6,FALSE)"
+
+    'Ajusta as referências de células para valores reais
+    rng.Value = rng.Value
+
+    'Agora faz o mesmo para a coluna K
+    Set rng = wsComplete.Range("K2:K" & LastRow)
+    rng.NumberFormat = "General"
+    rng.Formula = "=VLOOKUP(C2,'" & wsNoDupes.Name & "'!$C:$K,9,FALSE)"
+    rng.Value = rng.Value
+
+
+End Sub
+
+Sub copiadoexcel()
+
+    Dim path As String
+    Dim filename As String
+    
+    'path para o novo arquivo
+    path = ThisWorkbook.path
+
+    'nome da nova planilha
+    filename = "\Lista sem duplicados " & Format(Date, "dd-mm-yyyy") & ".xlsx"
+
+    'copia a planilha para um novo livro
+    Sheets("Lista sem duplicados").Copy
+
+    'salva o novo livro no local e com o nome especificado
+    With ActiveWorkbook
+        .SaveAs path & filename, FileFormat:=xlOpenXMLWorkbook
+        .Close SaveChanges:=False
+    End With
+
+    MsgBox "Arquivo salvo com sucesso em: " & path & filename
+
+End Sub
+
+Sub CreateCounselorList()
+Dim SourceWorkbook As Workbook
+Dim DestinationWorkbook As Workbook
+Dim SourceWorksheet As Worksheet
+Dim DestinationWorksheet As Worksheet
+Dim Cats As Range
+Dim i As Integer
+Dim LastRow As Long
+Dim filePath As String
+
+Set SourceWorkbook = ThisWorkbook
+Set SourceWorksheet = SourceWorkbook.Sheets("Lista completa")
+
+filePath = ThisWorkbook.path & "\Conselheiro - DATA_Counsellor (only) - Job Information " & Format(Date, "dd.mm.yyyy") & ".xlsx"
+
+' Tenta abrir o workbook já existente ou caso não exista cria uma nova cópia
+On Error Resume Next
+Set DestinationWorkbook = Workbooks.Open(filename:=filePath)
+If DestinationWorkbook Is Nothing Then
+    Workbooks.Open filename:=ThisWorkbook.path & "\" & "Conselheiro - DATA_Counsellor (only) - Job Information.xlsx"
+    ActiveWorkbook.SaveAs filename:=filePath
+    Set DestinationWorkbook = ActiveWorkbook
+End If
+On Error GoTo 0
+
+Set DestinationWorksheet = DestinationWorkbook.Sheets("Template")
+
+LastRow = SourceWorksheet.Cells(Rows.Count, 5).End(xlUp).Row
+i = 4
+
+For Each Cell In SourceWorksheet.Range("E2:E" & LastRow)
+    If Cell.Value = "Counselor" Then
+        DestinationWorksheet.Cells(i, 1).Value = SourceWorksheet.Cells(Cell.Row, 3).Value
+        DestinationWorksheet.Cells(i, 2).Value = SourceWorksheet.Cells(Cell.Row, 7).Value
+        DestinationWorksheet.Cells(i, 3).Value = Format(Date, "MM/DD/YYYY")
+        DestinationWorksheet.Cells(i, 4).Value = "AAY"
+        DestinationWorksheet.Cells(i, 5).Value = "Operation"
+        i = i + 1
+    End If
+Next Cell
+
+DestinationWorkbook.Save
+DestinationWorkbook.Close
+
+End Sub
+
+Sub CreateJRLList()
+Dim SourceWorkbook As Workbook
+Dim DestinationWorkbook As Workbook
+Dim SourceWorksheet As Worksheet
+Dim DestinationWorksheet As Worksheet
+Dim Cats As Range
+Dim i As Integer
+Dim LastRow As Long
+Dim filePath As String
+
+Set SourceWorkbook = ThisWorkbook
+Set SourceWorksheet = SourceWorkbook.Sheets("Lista completa")
+
+filePath = ThisWorkbook.path & "\JRL - DATA_Job Relations (only) - Job Relationship " & Format(Date, "dd.mm.yyyy") & ".xlsx"
+
+' Tenta abrir o workbook já existente ou caso não exista cria uma nova cópia
+On Error Resume Next
+Set DestinationWorkbook = Workbooks.Open(filename:=filePath)
+If DestinationWorkbook Is Nothing Then
+    Workbooks.Open filename:=ThisWorkbook.path & "\" & "JRL - DATA_Job Relations (only) - Job Relationship.xlsx"
+    ActiveWorkbook.SaveAs filename:=filePath
+    Set DestinationWorkbook = ActiveWorkbook
+End If
+On Error GoTo 0
+
+Set DestinationWorksheet = DestinationWorkbook.Sheets("Template")
+
+LastRow = SourceWorksheet.Cells(Rows.Count, 5).End(xlUp).Row
+i = 4
+
+For Each Cell In SourceWorksheet.Range("E2:E" & LastRow)
+    If Cell.Value <> "Counselor" Then
+        DestinationWorksheet.Cells(i, 1).Value = Format(Date, "MM/DD/YYYY")
+        DestinationWorksheet.Cells(i, 2).Value = SourceWorksheet.Cells(Cell.Row, 3).Value
+        DestinationWorksheet.Cells(i, 3).Value = SourceWorksheet.Cells(Cell.Row, 5).Value
+        DestinationWorksheet.Cells(i, 4).Value = SourceWorksheet.Cells(Cell.Row, 7).Value
+        DestinationWorksheet.Cells(i, 5).Value = ""
+        DestinationWorksheet.Cells(i, 5).Value = "Operation"
+        i = i + 1
+    End If
+Next Cell
+
+DestinationWorkbook.Save
+DestinationWorkbook.Close
+
+End Sub
+
+Sub AtualizarListaSharepoint()
+
+    Dim conn As Object
+    Set conn = CreateObject("ADODB.Connection")
+    
+    Dim sSharepointLeitura As String, sSPListLeitura As String, sConnLeitura As String, sSQLLeitura As String, sNomeListLeitura As String
+
+    sSharepointLeitura = ThisWorkbook.Worksheets("Config").Range("C4")
+    sSPListLeitura = ThisWorkbook.Worksheets("Config").Range("C5")
+    sConnLeitura = "Provider=Microsoft.ACE.OLEDB.12.0;WSS;IMEX=0;RetrieveIds=Yes;DATABASE=" & sSharepointLeitura & ";LIST=" & sSPListLeitura & ";"
+    sSQLLeitura = ""
+    sNomeListLeitura = ThisWorkbook.Worksheets("Config").Range("C6")
+    
+    'Abre a conexão
+    conn.Open sConnLeitura
+    
+    Dim rs As Worksheet
+    Set rs = ThisWorkbook.Worksheets("Lista completa")
+    
+    Dim i As Long
+    For i = 2 To rs.Cells(rs.Rows.Count, "C").End(xlUp).Row
+        'Construa sua instrução SQL
+      
+        sSQLLeitura = "UPDATE [Job Relations Changes] SET [Processamento HRE] = '" & rs.Cells(i, "H").Value & "', [Validacao Success Factors] = '" & rs.Cells(i, "K").Value & "' WHERE [User ID] = '" & rs.Cells(i, "C").Value & "'"
+
+        'Execute a instrução SQL
+        conn.Execute sSQLLeitura
+    Next i
+    
+    MsgBox "Lista de SharePoint atualizada!"
+
+End Sub
+
+    'Call CheckUserID
+    'Call Listacompleta
+    'Call copiadoexcel
+    'Call CreateCounselorList
+    'Call CreateJRLList
+    'Call AtualizarListaSharepoint
